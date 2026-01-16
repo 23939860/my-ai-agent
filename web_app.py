@@ -33,7 +33,10 @@ if user_input:
         message_placeholder.markdown("🤔 正在思考...")
         
         try:
-            answer = ask_qwen_with_memory(st.session_state.conversation_history + [{"role": "user", "content": user_input}])
+            answer = ask_qwen_with_memory(
+    query=user_input,
+    history=st.session_state.conversation_history
+)
             
             # 更新为最终回答
             message_placeholder.markdown(answer)
