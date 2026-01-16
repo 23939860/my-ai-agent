@@ -35,12 +35,23 @@ def ask_qwen_with_tools(query, history):
             messages=history + [{"role": "user", "content": query}],
         )
         
+        # ✅ 关键：先检查状态码，再访问 output
         if response.status_code != 200:
             return f"❌ API 错误: {response.code} - {response.message}"
         
-        raw_answer = response.output.choices[0].message.content
+        # ✅ 安全访问 output 字段
+        output = getattr(response, 'output', None)
+        if output is None:
+            return "❌ API 返回异常：output 为空"
         
-        # === 工具调用逻辑（唯一一处，且在 try 内）===
+        choices = output.get('choices', [])
+        if not choices:
+            return "❌ API 返回异常：无有效回答"
+        
+        message = choices[0].get('message', {})
+        raw_answer = message.get('content', '').strip()
+        
+        # === 工具调用逻辑 ===
         if raw_answer.startswith("TOOL:"):
             parts = raw_answer.split("|", 1)
             tool_name = parts[0].replace("TOOL:", "").strip()
@@ -58,7 +69,7 @@ def ask_qwen_with_tools(query, history):
                 return f"❌ 未知工具: {tool_name}"
         else:
             return raw_answer
-        # ===================================
+        # ===================
 
     except Exception as e:
         return f"⚠️ 网络或服务异常，请稍后重试：{str(e)[:100]}..."
