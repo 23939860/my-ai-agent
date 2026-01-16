@@ -1,11 +1,10 @@
 # -*- coding: utf-8 -*-
 import os
 from langchain_core.tools import tool
-from langchain.agents import create_tool_calling_agent, AgentExecutor
-from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+from langchain import hub
+from langchain.agents import create_react_agent, AgentExecutor
 from langchain_community.chat_models import ChatOpenAI
 import streamlit as st
-import requests
 
 # === 工具定义（LangChain 风格）===
 @tool
@@ -18,7 +17,6 @@ def get_current_time() -> str:
 def calculate_expression(expr: str) -> str:
     """安全地计算数学表达式"""
     try:
-        # 简单白名单过滤（防代码注入）
         allowed_chars = set("0123456789+-*/(). ")
         if not all(c in allowed_chars for c in expr):
             return "❌ 表达式包含非法字符"
@@ -30,7 +28,6 @@ def calculate_expression(expr: str) -> str:
 @tool
 def get_weather(city: str) -> str:
     """查询城市天气（模拟 API）"""
-    # 实际项目中替换为真实天气 API（如 OpenWeatherMap）
     weather_map = {
         "北京": "晴，15°C",
         "上海": "多云，18°C",
@@ -41,27 +38,31 @@ def get_weather(city: str) -> str:
 
 # === 初始化 Agent ===
 def init_agent():
-    api_key = st.secrets.get("DASHSCOPE_API_KEY") or os.getenv("DASHSCOPE_API_KEY")
+    api_key = os.getenv("DASHSCOPE_API_KEY")
     if not api_key:
-        raise ValueError("请设置 DASHSCOPE_API_KEY")
-    
-    # DashScope 兼容 OpenAI 接口
+        try:
+            api_key = st.secrets["DASHSCOPE_API_KEY"]
+        except Exception:
+            raise ValueError("请设置 DASHSCOPE_API_KEY")
+
     llm = ChatOpenAI(
         model="qwen-max",
-        openai_api_key=api_key,
-        openai_api_base="https://dashscope.aliyuncs.com/compatible-mode/v1"
+        api_key=api_key,
+        base_url="https://dashscope.aliyuncs.com/compatible-mode/v1"
     )
     
     tools = [get_current_time, calculate_expression, get_weather]
     
-    prompt = ChatPromptTemplate.from_messages([
-        ("system", "你是一个智能助手，可以使用工具回答问题。"),
-        MessagesPlaceholder(variable_name="chat_history"),
-        ("user", "{input}"),
-        MessagesPlaceholder(variable_name="agent_scratchpad")
-    ])
+    # ⭐ 关键：使用官方 ReAct 模板（不要自定义 prompt）
+    react_prompt = hub.pull("hwchase17/react")
     
-    agent = create_tool_calling_agent(llm, tools, prompt)
-    executor = AgentExecutor(agent=agent, tools=tools, verbose=True, handle_parsing_errors=True)
+    agent = create_react_agent(llm, tools, react_prompt)
+    executor = AgentExecutor(
+        agent=agent,
+        tools=tools,
+        verbose=True,
+        handle_parsing_errors=True,
+        max_iterations=10
+    )
     
     return executor
