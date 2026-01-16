@@ -34,9 +34,9 @@ if user_input:
         
         try:
             answer = ask_qwen_with_memory(
-    query=user_input,
-    history=st.session_state.conversation_history
-)
+                query=user_input,
+                history=st.session_state.conversation_history
+            )
             
             # 更新为最终回答
             message_placeholder.markdown(answer)
@@ -66,7 +66,6 @@ if user_input:
             error_msg = f"❌ 出错了: {str(e)}"
             message_placeholder.markdown(error_msg)
             st.session_state.messages.append({"role": "assistant", "content": error_msg})
-    # ===========================
 # 保存记忆按钮
 if st.button("💾 保存记忆"):
     save_memory(st.session_state.conversation_history)
