@@ -1,9 +1,14 @@
 # -*- coding: utf-8 -*-
+import os
+import streamlit as st
 import dashscope
 from dashscope import Generation
-from typing import List, Dict
 
-dashscope.api_key = "sk-352ac2c447984745ad305c07ee3d169a"
+# 🔐 使用 Streamlit Secrets 获取 API Key
+api_key = st.secrets.get("DASHSCOPE_API_KEY") or os.getenv("DASHSCOPE_API_KEY")
+if not api_key:
+    raise ValueError("请设置 DASHSCOPE_API_KEY")
+dashscope.api_key = api_key
 
 # 工具描述（给 AI 看的说明书）
 TOOL_DESCRIPTIONS = """
@@ -23,33 +28,37 @@ TOOL_DESCRIPTIONS = """
 注意：只有在确实需要工具时才使用，否则直接回答。
 """
 
-def ask_qwen_with_tools(messages: List[Dict[str, str]]) -> str:
-    """发送带工具说明的消息，并处理工具调用"""
-    # 在系统消息中加入工具说明
-    system_msg = {"role": "system", "content": TOOL_DESCRIPTIONS}
-    full_messages = [system_msg] + messages
-    
-    response = Generation.call(
-        model="qwen-max",
-        messages=full_messages
-    )
-    raw_answer = response.output.text
-    
-    # 检查是否需要调用工具
-    if raw_answer.startswith("TOOL:"):
-        parts = raw_answer.split("|", 1)
-        tool_name = parts[0].replace("TOOL: ", "").strip()
-        args = parts[1].strip() if len(parts) > 1 else ""
+def ask_qwen_with_tools(query, history):
+    try:
+        response = dashscope.Generation.call(
+            model="qwen-max",
+            messages=history + [{"role": "user", "content": query}],
+        )
         
-        from .tools import get_weather, calculate_expression, get_current_time
+        if response.status_code != 200:
+            return f"❌ API 错误: {response.code} - {response.message}"
         
-        if tool_name == "WEATHER":
-            return get_weather(args)
-        elif tool_name == "CALCULATE":
-            return calculate_expression(args)
-        elif tool_name == "TIME":
-            return get_current_time()
+        raw_answer = response.output.choices[0].message.content
+        
+        # === 工具调用逻辑（唯一一处，且在 try 内）===
+        if raw_answer.startswith("TOOL:"):
+            parts = raw_answer.split("|", 1)
+            tool_name = parts[0].replace("TOOL:", "").strip()
+            args = parts[1].strip() if len(parts) > 1 else ""
+            
+            from .tools import get_weather, calculate_expression, get_current_time
+            
+            if tool_name == "WEATHER":
+                return get_weather(args)
+            elif tool_name == "CALCULATE":
+                return calculate_expression(args)
+            elif tool_name == "TIME":
+                return get_current_time()
+            else:
+                return f"❌ 未知工具: {tool_name}"
         else:
-            return f"❌ 未知工具: {tool_name}"
-    else:
-        return raw_answer
+            return raw_answer
+        # ===================================
+
+    except Exception as e:
+        return f"⚠️ 网络或服务异常，请稍后重试：{str(e)[:100]}..."

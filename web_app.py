@@ -27,41 +27,43 @@ if user_input:
     with st.chat_message("user"):
         st.markdown(user_input)
     
-    # 发送请求并获取回复
-    try:
-        answer = ask_qwen_with_memory(st.session_state.conversation_history + [{"role": "user", "content": user_input}])
+    # === AI 回复（带加载状态）===
+    with st.chat_message("assistant"):
+        message_placeholder = st.empty()
+        message_placeholder.markdown("🤔 正在思考...")
         
-        # 添加 AI 回复
-        st.session_state.messages.append({"role": "assistant", "content": answer})
-        
-        with st.chat_message("assistant"):
-            st.markdown(answer)
+        try:
+            answer = ask_qwen_with_memory(st.session_state.conversation_history + [{"role": "user", "content": user_input}])
             
-        # 记录日志
-        log_conversation(user_input, answer)
-        
-        # 更新记忆
-        st.session_state.conversation_history.append({"role": "user", "content": user_input})
-        st.session_state.conversation_history.append({"role": "assistant", "content": answer})
-       
-        # ===== 新增：记忆压缩（第10步 C）=====
-        if len(st.session_state.conversation_history) > 20:  # 超过10轮对话（20条消息）
-            from chatbot.memory import summarize_conversation
-            summary = summarize_conversation(st.session_state.conversation_history)
-            # 保留摘要 + 最近4条（避免丢失上下文）
-            recent_msgs = st.session_state.conversation_history[-4:]
-            st.session_state.conversation_history = [
-                {"role": "system", "content": summary}
-            ] + recent_msgs
-            st.info("🧠 对话过长，已自动摘要并压缩记忆。")
-        # ===================================
-        
-    except Exception as e:
-        error_msg = f"❌ 出错了: {str(e)}"
-        st.session_state.messages.append({"role": "assistant", "content": error_msg})
-        with st.chat_message("assistant"):
-            st.markdown(error_msg)
-
+            # 更新为最终回答
+            message_placeholder.markdown(answer)
+            
+            # 添加到历史记录
+            st.session_state.messages.append({"role": "assistant", "content": answer})
+                
+            # 记录日志
+            log_conversation(user_input, answer)
+            
+            # 更新记忆
+            st.session_state.conversation_history.append({"role": "user", "content": user_input})
+            st.session_state.conversation_history.append({"role": "assistant", "content": answer})
+           
+            # ===== 新增：记忆压缩 =====
+            if len(st.session_state.conversation_history) > 20:
+                from chatbot.memory import summarize_conversation
+                summary = summarize_conversation(st.session_state.conversation_history)
+                recent_msgs = st.session_state.conversation_history[-4:]
+                st.session_state.conversation_history = [
+                    {"role": "system", "content": summary}
+                ] + recent_msgs
+                st.info("🧠 对话过长，已自动摘要并压缩记忆。")
+            # =========================
+            
+        except Exception as e:
+            error_msg = f"❌ 出错了: {str(e)}"
+            message_placeholder.markdown(error_msg)
+            st.session_state.messages.append({"role": "assistant", "content": error_msg})
+    # ===========================
 # 保存记忆按钮
 if st.button("💾 保存记忆"):
     save_memory(st.session_state.conversation_history)
