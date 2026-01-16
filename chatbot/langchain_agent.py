@@ -4,7 +4,6 @@ from langchain_core.tools import tool
 from langchain import hub
 from langchain.agents import create_react_agent, AgentExecutor
 from langchain_community.chat_models import ChatOpenAI
-import streamlit as st
 
 # === 工具定义（LangChain 风格）===
 @tool
@@ -37,14 +36,7 @@ def get_weather(city: str) -> str:
     return weather_map.get(city.strip(), f"暂不支持 {city} 的天气查询")
 
 # === 初始化 Agent ===
-def init_agent():
-    api_key = os.getenv("DASHSCOPE_API_KEY")
-    if not api_key:
-        try:
-            api_key = st.secrets["DASHSCOPE_API_KEY"]
-        except Exception:
-            raise ValueError("请设置 DASHSCOPE_API_KEY")
-
+def init_agent(api_key):
     llm = ChatOpenAI(
         model="qwen-max",
         api_key=api_key,
@@ -53,10 +45,9 @@ def init_agent():
     
     tools = [get_current_time, calculate_expression, get_weather]
     
-    # ⭐ 关键：使用官方 ReAct 模板（不要自定义 prompt）
-    react_prompt = hub.pull("hwchase17/react")
+    prompt = hub.pull("hwchase17/react")
+    agent = create_react_agent(llm, tools, prompt)
     
-    agent = create_react_agent(llm, tools, react_prompt)
     executor = AgentExecutor(
         agent=agent,
         tools=tools,
