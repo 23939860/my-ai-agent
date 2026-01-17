@@ -1,7 +1,0 @@
-[server]
-# 启用调试模式
-enable_debug = true
-
-[build]
-# 添加镜像源
-pip_args = ["--index-url", "https://pypi.org/simple/", "--extra-index-url", "https://pypi.tuna.tsinghua.edu.cn/simple"]
