@@ -3,6 +3,11 @@ langchain==0.3.7
 langchain-core==0.3.63
 langchain-community==0.3.3
 langchain-openai==0.2.14
-requests==2.31.0
+
 openai==1.58.1
 rich==13.9.4
+
+unstructured[pdfminer]==0.15.0
+pdfminer.six==20231228
+faiss-cpu==1.9.0
+tiktoken==0.12.0
