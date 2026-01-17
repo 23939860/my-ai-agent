@@ -2,7 +2,7 @@ streamlit==1.39.0
 langchain==0.3.7
 langchain-core==0.3.63
 langchain-community==0.3.3
-langchain-openai==0.2.16
+langchain-openai==0.2.14   # ← 真实存在！且兼容 openai>=1.54.0
 requests==2.31.0
 openai==1.54.0
-rich==13.9.4   # ← 关键！Streamlit 1.39 兼容的最高 rich 版本
+rich==13.9.4               # ← 强制锁定，避免 Streamlit 冲突
