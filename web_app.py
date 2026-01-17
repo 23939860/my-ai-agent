@@ -7,6 +7,7 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import RunnablePassthrough
 from langchain_core.output_parsers import StrOutputParser
 from langchain_community.tools import DuckDuckGoSearchRun
+from langchain_community.tools.tavily_search import TavilySearchResults
 from datetime import datetime
 from langchain.agents import create_react_agent, AgentExecutor
 from langchain import hub
@@ -48,7 +49,7 @@ if "agent_executor" not in st.session_state:
 
     from langchain.agents import Tool
     tools = [
-        DuckDuckGoSearchRun(),
+        TavilySearchResults(max_results=3),
         Tool(
             name="CurrentTime",
             func=get_current_time,
