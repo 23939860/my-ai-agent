@@ -82,7 +82,7 @@ with st.expander("📁 上传 PDF 文档（可选）"):
                 embeddings = HuggingFaceEmbeddings(
                     model_name="sentence-transformers/all-MiniLM-L6-v2"
                 )
-                vectorstore = FAISS.from_documents(splits, embeddings)
+                vectorstore = Chroma.from_documents(splits, embeddings)
                 st.session_state.vectorstore = vectorstore
                 st.success("✅ PDF 解析完成！现在可以提问文档内容。")
             except Exception as e:
