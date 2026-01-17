@@ -4,7 +4,7 @@ from datetime import datetime
 from langchain_core.tools import tool
 from langchain.prompts import PromptTemplate
 from langchain.agents import create_react_agent, AgentExecutor
-from langchain_community.chat_models import ChatOpenAI
+from langchain_openai import ChatOpenAI
 
 # ====== ReAct Prompt（硬编码）======
 react_prompt = """
