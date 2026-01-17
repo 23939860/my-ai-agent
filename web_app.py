@@ -6,10 +6,9 @@ from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import RunnablePassthrough
 from langchain_core.output_parsers import StrOutputParser
-from langchain_community.tools import DuckDuckGoSearchRun
 from langchain_community.tools.tavily_search import TavilySearchResults
 from datetime import datetime
-from langchain.agents import create_react_agent, AgentExecutor
+from langchain.agents import create_react_agent, AgentExecutor, Tool
 from langchain import hub
 import os
 import tempfile
@@ -21,7 +20,6 @@ if "DASHSCOPE_API_KEY" not in st.secrets:
     st.error("❌ 请在 Streamlit Cloud 的 Secrets 中设置 DASHSCOPE_API_KEY")
     st.stop()
 
-# 🔑 关键修复：从 secrets 中读取 API Key
 QWEN_API_KEY = st.secrets["DASHSCOPE_API_KEY"]
 
 # 初始化 LLM（用于聊天和 PDF 问答）
@@ -47,9 +45,11 @@ if "agent_executor" not in st.session_state:
     def get_current_time(*args, **kwargs):
         return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-    from langchain.agents import Tool
     tools = [
-        TavilySearchResults(max_results=3),
+        TavilySearchResults(
+            max_results=3,
+            api_key=st.secrets["TAVILY_API_KEY"]  # 显式传入密钥
+        ),
         Tool(
             name="CurrentTime",
             func=get_current_time,
@@ -80,7 +80,7 @@ with st.expander("📁 上传 PDF 文档（可选）"):
                 
                 from langchain_community.embeddings import HuggingFaceEmbeddings
                 embeddings = HuggingFaceEmbeddings(
-                     model_name="sentence-transformers/all-MiniLM-L6-v2"
+                    model_name="sentence-transformers/all-MiniLM-L6-v2"
                 )
                 vectorstore = FAISS.from_documents(splits, embeddings)
                 st.session_state.vectorstore = vectorstore
@@ -93,14 +93,12 @@ with st.expander("📁 上传 PDF 文档（可选）"):
 # ======================
 # 聊天区
 # ======================
-# 显示历史消息
 for msg in st.session_state.messages:
     if msg["role"] == "user":
         st.chat_message("user").write(msg["content"])
     else:
         st.chat_message("assistant").write(msg["content"])
 
-# 用户输入
 if prompt := st.chat_input("例如：'现在几点？' 或 '这份文档讲了什么？'"):
     st.session_state.messages.append({"role": "user", "content": prompt})
     st.chat_message("user").write(prompt)
@@ -108,9 +106,7 @@ if prompt := st.chat_input("例如：'现在几点？' 或 '这份文档讲了�
     with st.chat_message("assistant"):
         with st.spinner("思考中..."):
             try:
-                # ✅ 优化后的逻辑：只要上传了 PDF，就使用 RAG；否则用 Agent
                 if st.session_state.vectorstore is not None:
-                    # 使用 RAG 回答（基于已上传的 PDF）
                     retriever = st.session_state.vectorstore.as_retriever(search_kwargs={"k": 3})
                     template = """
                     你是一个专业的文档分析助手。请根据以下上下文回答问题。
@@ -130,7 +126,6 @@ if prompt := st.chat_input("例如：'现在几点？' 或 '这份文档讲了�
                     )
                     response = rag_chain.invoke(prompt)
                 else:
-                    # 没有上传 PDF，使用 ReAct Agent（支持时间、搜索等）
                     response = st.session_state.agent_executor.invoke({"input": prompt})["output"]
                 
                 st.write(response)

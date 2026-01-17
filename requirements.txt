@@ -10,8 +10,9 @@ rich==13.9.4
 unstructured[pdfminer]==0.18.27
 pdfminer.six==20231228
 
-# 本地 Embedding（替代 DashScope）
+
 sentence-transformers==3.3.1
 torch==2.5.1
-duckduckgo-search==6.2.8
+
 tavily-python>=0.5.0
+faiss-cpu==1.8.0.post1
