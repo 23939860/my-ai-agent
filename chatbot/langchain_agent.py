@@ -1,59 +1,51 @@
-# -*- coding: utf-8 -*-
-import os
-from langchain_core.tools import tool
-from langchain import hub
-from langchain.agents import create_react_agent, AgentExecutor
-from langchain_community.chat_models import ChatOpenAI
+import requests  # ← 这行加在文件顶部（已有就不用加）
 
-# === 工具定义（LangChain 风格）===
-@tool
-def get_current_time() -> str:
-    """获取当前日期和时间"""
-    from datetime import datetime
-    return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-@tool
-def calculate_expression(expr: str) -> str:
-    """安全地计算数学表达式"""
-    try:
-        allowed_chars = set("0123456789+-*/(). ")
-        if not all(c in allowed_chars for c in expr):
-            return "❌ 表达式包含非法字符"
-        result = eval(expr, {"__builtins__": {}}, {})
-        return str(result)
-    except Exception as e:
-        return f"❌ 计算错误: {str(e)}"
+# 在文件顶部已有的 import 下面添加（如果还没有）
+# 注意：确保 'requests' 在 requirements.txt 中
 
 @tool
 def get_weather(city: str) -> str:
-    """查询城市天气（模拟 API）"""
-    weather_map = {
-        "北京": "晴，15°C",
-        "上海": "多云，18°C",
-        "广州": "小雨，22°C",
-        "深圳": "阴，20°C"
+    """查询城市实时天气（使用 Open-Meteo 免费 API）"""
+    city = city.strip()
+    
+    # 城市坐标映射（可继续添加）
+    CITY_COORDS = {
+        "上海": (31.23, 121.47),
+        "北京": (39.90, 116.40),
+        "广州": (23.12, 113.26),
+        "深圳": (22.54, 114.05),
+        "长沙": (28.23, 112.93),
+        "杭州": (30.27, 120.15),
+        "成都": (30.66, 104.06)
     }
-    return weather_map.get(city.strip(), f"暂不支持 {city} 的天气查询")
-
-# === 初始化 Agent ===
-def init_agent(api_key):
-    llm = ChatOpenAI(
-        model="qwen-max",
-        api_key=api_key,
-        base_url="https://dashscope.aliyuncs.com/compatible-mode/v1"
-    )
     
-    tools = [get_current_time, calculate_expression, get_weather]
+    if city not in CITY_COORDS:
+        supported = "、".join(CITY_COORDS.keys())
+        return f"暂不支持「{city}」的天气查询。目前支持：{supported}"
     
-    prompt = hub.pull("hwchase17/react")
-    agent = create_react_agent(llm, tools, prompt)
+    lat, lon = CITY_COORDS[city]
+    url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&current=temperature_2m,weather_code"
     
-    executor = AgentExecutor(
-        agent=agent,
-        tools=tools,
-        verbose=True,
-        handle_parsing_errors=True,
-        max_iterations=10
-    )
-    
-    return executor
+    try:
+        resp = requests.get(url, timeout=5)
+        data = resp.json()
+        temp = data["current"]["temperature_2m"]
+        wcode = data["current"]["weather_code"]
+        
+        # 天气代码简化解释
+        if wcode == 0:
+            desc = "晴"
+        elif 1 <= wcode <= 3:
+            desc = "多云"
+        elif wcode == 45 or wcode == 48:
+            desc = "雾"
+        elif 50 <= wcode <= 69:
+            desc = "雨"
+        elif 70 <= wcode <= 79:
+            desc = "雪"
+        else:
+            desc = "阴"
+            
+        return f"{city}当前天气：{desc}，{temp}°C"
+    except Exception as e:
+        return f"获取天气失败，请稍后再试"
