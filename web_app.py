@@ -6,7 +6,8 @@ from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import RunnablePassthrough
 from langchain_core.output_parsers import StrOutputParser
-from langchain_community.tools import DuckDuckGoSearchRun, DateTimeTool
+from langchain_community.tools import DuckDuckGoSearchRun
+from datetime import datetime
 from langchain.agents import create_react_agent, AgentExecutor
 from langchain import hub
 import os
@@ -41,9 +42,20 @@ if "vectorstore" not in st.session_state:
 if "messages" not in st.session_state:
     st.session_state.messages = []
 if "agent_executor" not in st.session_state:
-    # 初始化 ReAct Agent（仅一次）
-    tools = [DuckDuckGoSearchRun(), DateTimeTool()]
-    react_prompt = hub.pull("hwchase17/react")  # LangChain 官方 ReAct 提示词
+    # 自定义获取当前时间的工具
+    def get_current_time(*args, **kwargs):
+        return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    from langchain.agents import Tool
+    tools = [
+        DuckDuckGoSearchRun(),
+        Tool(
+            name="CurrentTime",
+            func=get_current_time,
+            description="获取当前日期和时间"
+        )
+    ]
+    react_prompt = hub.pull("hwchase17/react")
     agent = create_react_agent(llm, tools, react_prompt)
     st.session_state.agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
 
