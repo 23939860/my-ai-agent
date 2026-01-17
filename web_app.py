@@ -65,10 +65,9 @@ with st.expander("📁 上传 PDF 文档（可选）"):
                 text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
                 splits = text_splitter.split_documents(docs)
                 
-                from langchain_community.embeddings import DashScopeEmbeddings
-                embeddings = DashScopeEmbeddings(
-                    model="text-embedding-v2",
-                    dashscope_api_key=QWEN_API_KEY
+                from langchain_community.embeddings import HuggingFaceEmbeddings
+                embeddings = HuggingFaceEmbeddings(
+                     model_name="sentence-transformers/all-MiniLM-L6-v2"
                 )
                 vectorstore = FAISS.from_documents(splits, embeddings)
                 st.session_state.vectorstore = vectorstore
